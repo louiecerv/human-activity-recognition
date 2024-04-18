@@ -1,35 +1,27 @@
 import streamlit as st
-import numpy as np # linear algebra
-import pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)
+import numpy as np 
+import pandas as pd 
 import matplotlib.pyplot as plt
 import seaborn as sns
-plt.style.use('seaborn-whitegrid')
 sns.set_style("white")
-from keras.models import Sequential
-from keras.layers import Dense
-from keras.layers import Flatten
-from keras.layers import Dropout
-from keras.layers import LSTM
-from keras.layers import TimeDistributed
-from keras.layers.convolutional import Conv1D
-from keras.layers.convolutional import MaxPooling1D
-from keras.layers import ConvLSTM2D
-from keras.utils import to_categorical
-from keras import backend as K 
-from keras.callbacks import EarlyStopping, ModelCheckpoint
-from keras.models import load_model, model_from_json
-from keras.metrics import CategoricalAccuracy, CategoricalCrossentropy
-from keras.wrappers.scikit_learn import KerasClassifier
+from tensorflow.keras.models import Sequential, load_model
+from tensorflow.keras.layers import Dense, Flatten, Dropout, LSTM, TimeDistributed, Conv1D, MaxPooling1D, ConvLSTM2D
+from tensorflow.keras.utils import to_categorical
+from tensorflow.keras import backend as K 
+from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
+from tensorflow.keras.metrics import CategoricalAccuracy, CategoricalCrossentropy
 from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import confusion_matrix, auc, roc_curve, roc_auc_score, precision_score, recall_score, f1_score, accuracy_score, classification_report
-
 from numpy.random import seed
 from tensorflow.random import set_seed
+
+X_train = None
+y_train = None
 
 import os
 for dirname, _, filenames in os.walk('./UCI HAR Dataset'):
     for filename in filenames:
-        print(os.path.join(dirname, filename))
+        st.write(os.path.join(dirname, filename))
 
 activities = {
     1: 'Walking',
@@ -81,13 +73,13 @@ def load_dataset(prefix=''):
     y_test = y_test - 1
     y_train = to_categorical(y_train)
     y_test = to_categorical(y_test)
-    s.write(f"""Dataset loaded. Training Set: X_train {X_train.shape} y_train {y_train.shape}
+    st.write(f"""Dataset loaded. Training Set: X_train {X_train.shape} y_train {y_train.shape}
         Test Set: X_test {X_test.shape} y_test {y_test.shape}""") 
     return X_train, y_train, X_test, y_test
 
 def create_model(model):
-    classifier = KerasClassifier(model, verbose=2)
-    return classifier
+    model = model
+    return model
 
 # GridSearch
 def grid(classifier):
@@ -99,12 +91,12 @@ def grid(classifier):
     grid = GridSearchCV(estimator=classifier, param_grid=param_grid, n_jobs=-1, cv=5, return_train_score=True, verbose=2)
     grid_result = grid.fit(X_train, y_train)
     # summarize results
-    print("Best: %f using %s" % (grid_result.best_score_, grid_result.best_params_))
+    st.write("Best: %f using %s" % (grid_result.best_score_, grid_result.best_params_))
     means = grid_result.cv_results_['mean_test_score']
     stds = grid_result.cv_results_['std_test_score']
     params = grid_result.cv_results_['params']
     for mean, stdev, param in zip(means, stds, params):
-        print("%f (%f) with: %r" % (mean, stdev, param))
+        st.write("%f (%f) with: %r" % (mean, stdev, param))
     return grid_result
 
 def evaluate_model(X_train, y_train, X_test, y_test, params, model):
@@ -119,7 +111,7 @@ def evaluate_model(X_train, y_train, X_test, y_test, params, model):
 def run_model(model, grid_result):
     history, score, classifier = evaluate_model(X_train, y_train, X_test, y_test, grid_result.best_params_, model)
     score = score * 100.0
-    print('> %.3f' % (score))
+    st.write('> %.3f' % (score))
     results=pd.DataFrame(history.history, index=history.epoch)
     return results, classifier
 
@@ -146,10 +138,24 @@ def run(model):
     plot_loss(results)
     return classifier
 
+def model1():
+    seed(17)
+    set_seed(17)
+    K.clear_session()
+    model = Sequential()
+    model.add(LSTM(64, input_shape=(n_timesteps,n_features)))
+    model.add(Dropout(0.1))
+    model.add(Dense(64, activation='relu'))
+    model.add(Dense(n_outputs, activation='softmax'))
+    model.compile(loss='categorical_crossentropy', optimizer="adam", metrics=['accuracy'])
+    return model
+
 
 def app():
-    X_train, y_train, X_test, y_test = load_dataset(prefix="")
+    X_train, y_train, X_test, y_test = load_dataset(prefix="./UCI HAR Dataset/")
     n_timesteps, n_features, n_outputs = X_train.shape[1], X_train.shape[2], y_train.shape[1]
+
+    classifier1=run(model1)
 
 
 if __name__ == '__main__':
